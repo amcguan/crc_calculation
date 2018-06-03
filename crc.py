@@ -22,11 +22,8 @@ class SetupWindow():
 		self.button.grid(row=2, column=1)
 		frame.pack()
 		
-	def call_mod2_div(self):
-		divident = (''.join(format(ord(x), 'b') for x in self.data_enter.get()))
-		print("Input Data (in binary): " + divident)
-		
-		encodeData(divident, self.div_enter.get())
+	def call_mod2_div(self):		
+		encodeData(self.data_enter.get(), self.div_enter.get())
 	
 	
 class TextWindow():
@@ -104,27 +101,20 @@ class TextWindow():
 			if tmp[0] == '1':
 	 
 				if pick == len(divisor):
-					print(" " + tmp + divident[pick : len(divident)])
 					self.update_text(" " + tmp + divident[pick : len(divident)] +"\n")
 					self.root.update()
 				else:
-					print(shift[iter_back:] + afz + tmp[:-1], end='', flush=True)
-					#input()
-					print(tmp[-1:] + divident[pick : len(divident)])
 					self.update_text(shift[iter_back:] + afz + tmp[:-1])
 					#input()
 					self.update_text(tmp[-1:] + divident[pick : len(divident)]+"\n")
 					
 				iter_back = 0
 				time.sleep(self.sleep_val)
-				print(spaces + divisor)
-				print(underscores)
 				self.update_text(spaces+divisor+"\n")
 				self.update_text(underscores+"\n")
 				
 				time.sleep(self.sleep_val)
 				
-				print(spaces + arrows + " XORED")
 				self.update_text(spaces+arrows+" XORED\n")
 				afz = "0"
 				time.sleep(self.sleep_val)
@@ -155,18 +145,14 @@ class TextWindow():
 		underscores = underscores + "-"
 		
 		if tmp[0] == '1':
-			print(shift[iter_back:] + afz + tmp + divident[pick : len(divident)])
 			self.update_text(shift[iter_back:] + afz + tmp + divident[pick : len(divident)]+"\n")
 			iter_back = 0
 			time.sleep(self.sleep_val)
-			print(spaces + divisor)
-			print(underscores)
 			self.update_text(spaces+divisor+"\n")
 			self.update_text(underscores+"\n")
 			
 			time.sleep(self.sleep_val)
 			
-			print(spaces + arrows + " XORED")
 			self.update_text(spaces+arrows+" XORED\n")
 			time.sleep(self.sleep_val)
 			afz = "0"
@@ -179,13 +165,9 @@ class TextWindow():
 		checkword = tmp
 		shift += " "
 		
-		print(shift[iter_back:] + afz + tmp + divident[pick : len(divident)] + " (remainder)\n")
 		self.update_text(shift[iter_back:] + afz + tmp + divident[pick : len(divident)] + " (remainder)\n\n")
 		
 		codeword = divident + checkword
-		print("Data Word: " + divident)
-		print("Remainder: " + str(' '*(len(divident)) + checkword))
-		print("Code Word: " + codeword)
 		self.update_text("Data Word: " + divident+"\n")
 		self.update_text("Remainder: " + str(' '*(len(divident)) + checkword)+"\n")
 		self.update_text("Code Word: " + codeword+"\n")
@@ -195,35 +177,25 @@ class TextWindow():
 # Function used at the sender side to encode
 # data by appending remainder of modular divison
 # at the end of data.
-def encodeData(data, key):
-	
+def encodeData(data, key):	
+	stringdata = data
+	binarydata = (''.join(format(ord(x), 'b') for x in stringdata))
 	
 	l_key = len(key)
-  
+
 	# Appends n-1 zeroes at end of data
-	appended_data = data + '0'*(l_key-1)
+	appended_data = binarydata + '0'*(l_key-1)
 	
 	text = TextWindow(appended_data, key)
-
 	
-	print("\nLength of Divisor = " + str(l_key))
-	print("*Data Word will add " + str(l_key-1) + " 0's at the end")
-	print("\nAlter Data: " + data + "|" + '0'*(l_key-1))
-	print("Divisor:    " + key + "\n")
-	
+	text.text.insert(tk.END, "Input data (string): " + stringdata+"\n")
+	text.text.insert(tk.END, "Input Data (in binary): " + binarydata+"\n")
 	text.text.insert(tk.END, "\nLength of Divisor = " + str(l_key))
 	text.text.insert(tk.END, "\n*Data Word will add " + str(l_key-1) + " 0's at the end\n")
-	text.text.insert(tk.END, "\nAlter Data: " + data + "|" + '0'*(l_key-1))
+	text.text.insert(tk.END, "\nAlter Data: " + binarydata + "|" + '0'*(l_key-1))
 	text.text.insert(tk.END, "\nDivisor:    " + key + "\n\n")
 	text.root.mainloop()
 	
-	remainder = text.mod2div(appended_data, key)
-  
-	# Append remainder in the original data
-	codeword = data + remainder
-	print("Data Word: " + appended_data)
-	print("Remainder: " + str(' '*(len(data)) + remainder))
-	print("Code Word: " + codeword)
 	return    
 	
 def xor(a, b):
@@ -240,12 +212,12 @@ def xor(a, b):
             result.append('1')
   
     return ''.join(result)
- 
 
-def make_start_window():
+
+def main():
 	setup = SetupWindow()	
 	setup.root.mainloop()
 
-
-make_start_window()
+if __name__=="__main__":
+	main()
 
