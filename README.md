@@ -13,5 +13,5 @@ it can be installed [here](https://tkdocs.com/tutorial/install.html).
 
 This project requires a version of Python3.
 
-- Usage
+Usage:
 python3 crc.py
