@@ -4,76 +4,160 @@
 import time
 import sys
 import tkinter as tk
+import threading
+
+# ==== State flags ======
+BEGIN = -1
+STOP = 0
+RUN  = 1
+STEP = 2
+KILL = 3
+
+# ===== step flags ======
+WAIT = 0
+CONTINUE = 1
 
 class SetupWindow():
 	def __init__(self):
+		# set frame
 		self.root = tk.Tk()
 		frame = tk.Frame(self.root)
+		
+		# Labels
 		tk.Label(frame, text="Data").grid(row=0)
 		tk.Label(frame, text="Divisor").grid(row=1)
 	
+		#entries
 		self.data_enter = tk.Entry(frame)
-		self.div_enter = tk.Entry(frame)
 		self.data_enter.grid(row=0, column=1, columnspan=2)
+		self.div_enter = tk.Entry(frame)
 		self.div_enter.grid(row=1, column=1, columnspan=2)	
+		
+		#button
 		self.button = tk.Button(frame,
 						   text="Submit",
 						   command=self.call_mod2_div)
 		self.button.grid(row=2, column=1)
 		frame.pack()
-		
+	
+	# on submit, call the encode data function to kick off the conversion
 	def call_mod2_div(self):		
 		encodeData(self.data_enter.get(), self.div_enter.get())
 	
 	
 class TextWindow():
 	def __init__(self, divident, divisor):
+		# frame setup
 		self.root = tk.Tk()
+		self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 		top_frame = tk.Frame(self.root)
 		bottom_frame = tk.Frame(self.root)
 		
+		# set private fields
 		self.divident = divident
 		self.divisor = divisor
+		self.sleep_val = 1
+		self.curr_sleep_val = 1
 		
+		self.state = BEGIN
+		self.resume_state = RUN
+		self.step_flag = WAIT
+		
+		# ============ BUTTONS ===============
 		self.start_btn = tk.Button(top_frame,
 								   text="Start",
 								   command=self.start)
-		#self.start_btn.grid(row=0, column=0)
-		self.start_btn.pack()
+		self.start_btn.pack(side=tk.LEFT, padx=10)
+		self.stop_btn = tk.Button(top_frame,
+							      text="Stop",
+								  command=self.stop)
+		self.stop_btn.pack(side=tk.LEFT, padx=10)
+		self.step_btn = tk.Button(top_frame,
+								  text="Step",
+								  command=self.step)
+		self.step_btn.pack(side=tk.LEFT, padx=10)
 		self.finish_btn = tk.Button(top_frame,
 								    text="Finish",
-									command=lambda: self.update_sleep(0))
-		#self.finish_btn.grid(row=0, column=1)
-		self.finish_btn.pack()
+									command=self.finish)
+		self.finish_btn.pack(side=tk.LEFT, padx=10)
 		
-		self.text = tk.Text(bottom_frame, height=20, width=80)
-		#self.text.grid(row=1, column=0, columnspan=3)
-		self.text.pack(side=tk.LEFT)
+		# ========= TEXT AND SCROLL =============
+		self.text = tk.Text(bottom_frame, height=20, width=80, wrap=tk.NONE)
 		
-		scroll = tk.Scrollbar(bottom_frame)
-		scroll.pack(side=tk.RIGHT, fill=tk.Y)
-		scroll.config(command=self.text.yview)
-		self.text.config(yscrollcommand=scroll.set)
-		
-		self.sleep_val = 1
+		vscroll = tk.Scrollbar(bottom_frame, orient='vertical')
+		vscroll.pack(side=tk.RIGHT, fill=tk.Y)
+		vscroll.config(command=self.text.yview)
+		hscroll = tk.Scrollbar(bottom_frame, orient='horizontal')
+		hscroll.pack(side=tk.BOTTOM, fill=tk.X)
+		hscroll.config(command=self.text.xview)
+		self.text.config(yscrollcommand=vscroll.set, xscrollcommand=hscroll.set)	
+		self.text.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=tk.YES)
+
 		
 		top_frame.pack(side=tk.TOP, fill=tk.X)
-		bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
+		bottom_frame.pack(side=tk.TOP, fill=tk.X)
 		
 	def start(self):
-		self.mod2div(self.divident, self.divisor)
+		if(self.state == BEGIN):
+			self.state = RUN
+			self.update_sleep(self.sleep_val)
+			self.text.delete(10.0, tk.END)
+			thread = threading.Thread(target=self.mod2div, args=(self.divident, self.divisor,))
+			thread.start()
+		elif(self.state == STOP):
+			self.update_sleep(self.sleep_val)
+			self.state = RUN
+		elif(self.state == STEP):
+			self.state = RUN
+			self.update_sleep(self.sleep_val)
+		
+	def stop(self):
+		self.resume_state = self.state
+		self.state = STOP
+	
+	def finish(self):
+		if(self.state == BEGIN):
+			self.update_sleep(0)
+			self.state = RUN
+			self.text.delete(10.0, tk.END)
+			thread = threading.Thread(target=self.mod2div, args=(self.divident, self.divisor,))
+			thread.start()
+		else:
+			self.update_sleep(0)
+			self.state = RUN
+		
+	def step(self):
+		self.update_sleep(0)
+		self.step_flag = CONTINUE
+		if(self.state == BEGIN):
+			self.state = STEP
+			thread = threading.Thread(target=self.mod2div, args=(self.divident, self.divisor,))
+			thread.start()
+		else:
+			self.state = STEP
+	
+	def wait_for_step(self):
+		while(self.state == STOP):
+			continue
+		self.state = self.resume_state		
 		
 	def update_text(self, text):
-		self.text.insert(tk.END, text)					
-		self.root.update()
-		self.text.see(tk.END)
-		
+		try:
+			self.text.insert(tk.END, text)					
+			self.root.update()
+			self.text.see(tk.END)
+		except tk._tkinter.TclError as e:
+			return
+			
 	def update_sleep(self, val):
-		self.sleep_val = val
+		self.curr_sleep_val = val
+	
+	def on_closing(self):
+		self.state = KILL
+		self.root.destroy()
 		
 		# Performs Modulo-2 division
 	def mod2div(self, divident, divisor):
-
 		spaces = ""
 		underscores = "----------------------"
 		abz = ""
@@ -82,7 +166,8 @@ class TextWindow():
 		shift = ""
 		iter_back = 0
 		
-		# Number of bits to be XORed at a time.
+		# Number of bits to be X
+		#ORed at a time.
 		pick = len(divisor)
 		len_div = len(divisor)
 	  
@@ -95,7 +180,11 @@ class TextWindow():
 		tmp = divident[0 : pick]
 
 		while pick < len(divident):
-			
+			if(self.state == STOP):
+				continue
+			elif(self.state == KILL):
+				return
+				
 			spaces += " "
 			
 			if tmp[0] == '1':
@@ -109,15 +198,19 @@ class TextWindow():
 					self.update_text(tmp[-1:] + divident[pick : len(divident)]+"\n")
 					
 				iter_back = 0
-				time.sleep(self.sleep_val)
+				time.sleep(self.curr_sleep_val)
+				
+				while(self.state == STEP and self.step_flag == WAIT):
+					continue
+				self.step_flag = WAIT
 				self.update_text(spaces+divisor+"\n")
 				self.update_text(underscores+"\n")
 				
-				time.sleep(self.sleep_val)
+				time.sleep(self.curr_sleep_val)
 				
 				self.update_text(spaces+arrows+" XORED\n")
 				afz = "0"
-				time.sleep(self.sleep_val)
+				time.sleep(self.curr_sleep_val)
 				# replace the divident by the result
 				# of XOR and pull 1 bit down
 				tmp = xor(divisor, tmp) + divident[pick]
@@ -140,21 +233,21 @@ class TextWindow():
 		# For the last n bits, we have to carry it out
 		# normally as increased value of pick will cause
 		# Index Out of Bounds.
-		
 		spaces += " "
 		underscores = underscores + "-"
 		
 		if tmp[0] == '1':
 			self.update_text(shift[iter_back:] + afz + tmp + divident[pick : len(divident)]+"\n")
 			iter_back = 0
-			time.sleep(self.sleep_val)
+			time.sleep(self.curr_sleep_val)
+			
 			self.update_text(spaces+divisor+"\n")
 			self.update_text(underscores+"\n")
 			
-			time.sleep(self.sleep_val)
+			time.sleep(self.curr_sleep_val)
 			
 			self.update_text(spaces+arrows+" XORED\n")
-			time.sleep(self.sleep_val)
+			time.sleep(self.curr_sleep_val)
 			afz = "0"
 			tmp = xor(divisor, tmp)
 		else:
@@ -172,6 +265,7 @@ class TextWindow():
 		self.update_text("Remainder: " + str(' '*(len(divident)) + checkword)+"\n")
 		self.update_text("Code Word: " + codeword+"\n")
 		
+		self.state = BEGIN
 		return checkword
 	
 # Function used at the sender side to encode
